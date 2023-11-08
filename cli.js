@@ -167,41 +167,6 @@ async function init() {
 				await execa(path.join(__dirname, 'seticon'), [composedIconPath, dmgPath]);
 			}
 
-			ora.text = 'Code signing DMG';
-			let identity;
-			const {stdout} = await execa('/usr/bin/security', ['find-identity', '-v', '-p', 'codesigning']);
-			if (cli.flags.identity && stdout.includes(`"${cli.flags.identity}"`)) {
-				identity = cli.flags.identity;
-			} else if (!cli.flags.identity && stdout.includes('Developer ID Application:')) {
-				identity = 'Developer ID Application';
-			} else if (!cli.flags.identity && stdout.includes('Mac Developer:')) {
-				identity = 'Mac Developer';
-			} else if (!cli.flags.identity && stdout.includes('Apple Development:')) {
-				identity = 'Apple Development';
-			}
-
-			if (!identity) {
-				const error = new Error(); // eslint-disable-line unicorn/error-message
-				error.stderr = 'No suitable code signing identity found';
-				throw error;
-			}
-
-			try {
-				await execa('/usr/bin/codesign', ['--sign', identity, dmgPath]);
-			} catch (error) {
-				ora.fail(`Code signing failed. The DMG is fine, just not code signed.\n${error.stderr?.trim() ?? error}`);
-				process.exit(2);
-			}
-
-			const {stderr} = await execa('/usr/bin/codesign', [dmgPath, '--display', '--verbose=2']);
-
-			const match = /^Authority=(.*)$/m.exec(stderr);
-			if (!match) {
-				ora.fail('Not code signed');
-				process.exit(1);
-			}
-
-			ora.info(`Code signing identity: ${match[1]}`).start();
 			ora.succeed(`Created “${dmgFilename}”`);
 		} catch (error) {
 			ora.fail(`${error.stderr?.trim() ?? error}`);
